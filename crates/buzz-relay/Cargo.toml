@@ -16,6 +16,7 @@ name = "buzz-relay"
 path = "src/main.rs"
 
 [dependencies]
+buzz-bap = { path = "/Users/adrianmross/Projects/bap/crates/buzz-bap" }
 buzz-core = { workspace = true }
 buzz-conformance = { workspace = true }
 buzz-db = { workspace = true }

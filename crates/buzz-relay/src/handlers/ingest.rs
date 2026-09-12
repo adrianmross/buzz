@@ -542,6 +542,8 @@ fn required_scope_for_kind(kind: u32, event: &Event) -> Result<Scope, &'static s
         KIND_DM_OPEN | KIND_DM_ADD_MEMBER | KIND_DM_HIDE => Ok(Scope::MessagesWrite),
         KIND_WORKFLOW_DEF | KIND_WORKFLOW_TRIGGER => Ok(Scope::MessagesWrite),
         KIND_APPROVAL_GRANT | KIND_APPROVAL_DENY => Ok(Scope::MessagesWrite),
+        // BAP (Buzz Authority Protocol): the kind registry lives in the `buzz-bap` crate, pinned to the golden vectors.
+        k if buzz_bap::kinds::scope_for_kind(k).is_some() => Ok(Scope::MessagesWrite),
         _ => Err("restricted: unknown event kind"),
     }
 }
@@ -2271,6 +2273,41 @@ async fn ingest_event_inner(
             "restricted: insufficient scope (need {})",
             required
         )));
+    }
+
+    // BAP byte bounds (RCR §3 + errata) for BAP kinds.
+    if let Some(max) = buzz_bap::kinds::max_event_bytes(kind_u32) {
+        let n = serde_json::to_string(&event).map(|s| s.len()).unwrap_or(usize::MAX);
+        if n >= max {
+            return Err(IngestError::Rejected(format!("restricted: kind {} event is {} bytes; bound is < {}", kind_u32, n, max)));
+        }
+    }
+    // BAP NIP-XD §Relay enforcement: a kind-9 stream message bearing an inline `ucan` tag is verified at ingest —
+    // signatures, attenuation, expiry, action binding (kind, h, sha256 of content) — against the channel creator as
+    // the resource owner. A malformed or unauthorized chain is rejected with the `restricted:` surface. Events without
+    // a `ucan` tag are not capability-gated here (gating policy per channel lands with the manifest-aware ingest).
+    if kind_u32 == 9 && event.tags.iter().any(|t| t.kind().to_string() == "ucan") {
+        let ch_id = extract_channel_id(&event).ok_or_else(|| IngestError::Rejected("restricted: ucan-tagged stream message has no h tag".into()))?;
+        let ch = state.db.get_channel(tenant.community(), ch_id).await.map_err(|e| IngestError::Rejected(format!("restricted: channel unresolvable: {e}")))?;
+        let creator = ch.created_by;
+        let x: &[u8] = if creator.len() == 33 { &creator[1..] } else { &creator[..] };
+        let owner = buzz_bap::kinds::owner_did(&hex::encode(x)).map_err(|e| IngestError::Rejected(e.to_string()))?;
+        let ev_json = serde_json::to_value(&event).map_err(|e| IngestError::Internal(e.to_string()))?;
+        let now = chrono::Utc::now().timestamp().max(0) as u64;
+        // NIP-XB: domain time from the beacons this relay holds for the channel (expb chains fail closed without one).
+        let beacons: Vec<serde_json::Value> = state.db.query_events(&buzz_db::EventQuery {
+            kinds: Some(vec![buzz_bap::kinds::KIND_BEACON as i32]),
+            custom_tag: Some(("domain".to_string(), format!("nostr:h/{ch_id}"))),
+            limit: Some(50),
+            ..buzz_db::EventQuery::for_community(tenant.community())
+        }).await.map_err(|e| IngestError::Rejected(format!("restricted: beacon lookup failed: {e}")))?
+            .into_iter().filter_map(|se| serde_json::to_value(&se.event).ok()).collect();
+        let now_seq = buzz_bap::kinds::domain_time(&beacons, &format!("nostr:h/{ch_id}"));
+        match buzz_bap::kinds::check_inline_ucan(&ev_json, &owner, now, now_seq, &std::collections::HashSet::new()) {
+            Ok(buzz_bap::kinds::InlineUcan::Verified(_)) => debug!(event_id = %event_id_hex, "BAP inline ucan verified"),
+            Ok(buzz_bap::kinds::InlineUcan::Absent) => {}
+            Err(e) => return Err(IngestError::Rejected(e.to_string())),
+        }
     }
 
     // Command kinds are routed AFTER signature verification, timestamp check,
