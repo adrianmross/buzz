@@ -80,6 +80,18 @@ test("isRequestAddressedTo_pTag_didNostr_didKey", () => {
     requestEvent({ tags: [["p", OTHER]], to: ["did:key:zOther"] }),
   );
   assert.equal(isRequestAddressedTo(someoneElse, me), false);
+  // M18: a request naming the enrolled passkey DID is mine too.
+  const byPasskey = parseBapRequestEvent(
+    requestEvent({ tags: [], to: ["did:key:zDnPasskey"] }),
+  );
+  assert.equal(isRequestAddressedTo(byPasskey, me), false);
+  assert.equal(
+    isRequestAddressedTo(byPasskey, {
+      ...me,
+      approverDid: "did:key:zDnPasskey",
+    }),
+    true,
+  );
 });
 
 test("selectPendingRequests_dropsAnswered_expired_foreign_andSortsNewestFirst", () => {

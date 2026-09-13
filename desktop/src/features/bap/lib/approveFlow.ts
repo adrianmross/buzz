@@ -7,6 +7,7 @@ import { didKeyFromNostrPubkey, partyPubkey } from "@bap/core/src/did.ts";
 import type { PolicyAtom } from "@bap/core/src/policy.ts";
 
 import {
+  type BapApprover,
   type BapProofPayload,
   type BapRequest,
   buildDelegationEventTags,
@@ -17,11 +18,12 @@ import {
   isRequestExpired,
 } from "@/features/bap/lib/bapApproval";
 import {
+  enrollmentSigns,
   loadNativeEnrollment,
   nativeAuthenticatorReady,
   runNativeCeremony,
 } from "@/features/bap/lib/nativeAuthenticator";
-import { assembleUcan } from "@/features/bap/lib/ucan";
+import { assembleUcan, finishUcan } from "@/features/bap/lib/ucan";
 import { readAuthoritySettings } from "@/features/authority/lib/authority";
 import { relayClient } from "@/shared/api/relayClient";
 import { signDigest, signRelayEvent } from "@/shared/api/tauri";
@@ -32,13 +34,19 @@ import { KIND_BAP_DELEGATION } from "@/shared/constants/kinds";
  * The approve flow. With a Touch ID enrolment on this Mac the whole ceremony
  * runs in-app; otherwise it is split by the browser round trip:
  *
- *   startBapApproval   draft commitment →
- *     native           /challenge → Secure Enclave assertion (Touch ID) → /verify
- *                      → completeBapApproval, no browser
+ *   startBapApproval   draft commitment (issuer = passkey did:key when the
+ *                      enrolment carries a sign key, else the identity did:key) →
+ *     native           /challenge → Secure Enclave assertion (Touch ID) →
+ *     (sign-extension) passkey signs the UCAN digest (Touch ID) → /verify {proof, ucan}
+ *                      → completeBapApproval publishes the passkey-signed grant
+ *     native (legacy)  /challenge → assertion → /verify → completeBapApproval
+ *                      signs the grant with the identity key (pre-M18 enrolment)
  *     browser          hosted RP wallet page (system browser) →
  *     (page)           /challenge → passkey assertion → /verify → buzz://bap/proof#…
- *   completeBapApproval proof → grantWithinCommitment → UCAN (Rust-signed digest)
- *                      → kind 4551 into the request's channel
+ *   completeBapApproval proof → grantWithinCommitment → UCAN → kind 4551 into
+ *                      the request's channel. The event's Nostr publisher is the
+ *                      desktop identity; a P-256 `iss` rides on it as a carrier
+ *                      key (NIP-XD §Kind 4551).
  *
  * Same algorithm as `approveRequest()` in the bap repo's wallet CLI.
  */
@@ -52,7 +60,7 @@ export function bapRpUrl(): string {
 }
 
 export type BapApprovalStart =
-  | { mode: "native" }
+  | { mode: "native"; legacyEnrollment: boolean }
   | { mode: "browser"; url: string };
 
 type PendingApproval = {
@@ -72,9 +80,19 @@ export function resetBapApprovalState(): void {
   pendingApprovals.clear();
 }
 
-export function approverFor(pubkey: string) {
+/** Me as an approver: identity key, plus the enrolled passkey DID when it signs. */
+export function approverFor(pubkey: string): BapApprover {
   const normalized = pubkey.toLowerCase();
-  return { pubkey: normalized, didKey: didKeyFromNostrPubkey(normalized) };
+  const didKey = didKeyFromNostrPubkey(normalized);
+  const enrollment = loadNativeEnrollment(didKey);
+  return {
+    pubkey: normalized,
+    didKey,
+    approverDid:
+      enrollment && enrollmentSigns(enrollment)
+        ? enrollment.issuer_did
+        : undefined,
+  };
 }
 
 /**
@@ -94,10 +112,15 @@ export async function startBapApproval(
   if (isRequestExpired(req, now)) {
     throw new Error("This request has expired; expiry is denial.");
   }
-  // The UCAN `iss` must be a did:key (bap-core validatePayload), so the
-  // commitment issuer is the did:key of the identity pubkey — the DID the
-  // wallet page's passkey enrollment is bound to.
-  const draft = buildDraftCommitment(req, me.didKey, now);
+  // The UCAN `iss` must be a did:key (bap-core validatePayload): the passkey's
+  // P-256 did:key when this Mac's enrolment signs (M18), else the identity
+  // did:key — the DID a pre-M18 enrolment or the wallet page is bound to.
+  const enrollment = loadNativeEnrollment(me.didKey);
+  const native =
+    enrollment !== null && (await nativeAuthenticatorReady(enrollment));
+  const issuerDid =
+    native && enrollmentSigns(enrollment) ? enrollment.issuer_did : me.didKey;
+  const draft = buildDraftCommitment(req, issuerDid, now);
   let audiencePubkey: string | undefined;
   try {
     audiencePubkey = partyPubkey(draft.audience_did);
@@ -111,20 +134,36 @@ export async function startBapApproval(
     audiencePubkey,
   });
   const rp = bapRpUrl();
-  const enrollment = loadNativeEnrollment(me.didKey);
-  if (enrollment && (await nativeAuthenticatorReady(enrollment))) {
-    const payload = await runNativeCeremony(rp, draft, enrollment);
-    await completeBapApproval(payload);
-    return { mode: "native" };
+  if (native) {
+    const { payload, token } = await runNativeCeremony(
+      rp,
+      draft,
+      enrollment,
+      req.request.chainRoot,
+    );
+    await completeBapApproval(payload, token);
+    return { mode: "native", legacyEnrollment: !enrollmentSigns(enrollment) };
   }
   const url = buildRpApproveUrl(rp, draft);
   await openUrl(url);
   return { mode: "browser", url };
 }
 
-/** Finish an approval from the verified proof: sign the grant, publish 4551. */
+/** `h.p.s` → `[h.p, s]`. */
+function splitToken(token: string): [string, string] {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("grant token is not h.p.s");
+  return [`${parts[0]}.${parts[1]}`, parts[2]];
+}
+
+/**
+ * Finish an approval from the verified proof: publish the grant as kind 4551.
+ * `token` is the passkey-signed UCAN of a sign-extension ceremony (re-verified
+ * here); without it the grant is signed with the identity key (`sign_digest`).
+ */
 export async function completeBapApproval(
   payload: BapProofPayload,
+  token?: string,
 ): Promise<RelayEvent> {
   const commitment = validateCommitment(payload.proof.commitment);
   const pending = pendingApprovals.get(commitment.request_ref);
@@ -142,10 +181,17 @@ export async function completeBapApproval(
     { ...draft, pol: draft.pol as PolicyAtom[] },
     commitment,
   );
-  const { token } = await assembleUcan(draft, signDigest);
+  const { token: content, payload: grant } = token
+    ? finishUcan(...splitToken(token))
+    : await assembleUcan(draft, signDigest);
+  // A passkey-signed token arrives already signed: hold it to the same bar.
+  grantWithinCommitment(grant, commitment);
+  if (grant.nonce !== draft.nonce || grant.sub !== draft.sub) {
+    throw new Error("grant token does not belong to this approval");
+  }
   const event = await signRelayEvent({
     kind: KIND_BAP_DELEGATION,
-    content: token,
+    content,
     tags: buildDelegationEventTags(draft, {
       audiencePubkey: pending.audiencePubkey,
       requestEventId: pending.eventId,

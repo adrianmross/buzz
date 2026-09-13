@@ -35,8 +35,15 @@ export type BapRequest = {
   request: BapRequestApproval;
 };
 
-/** The approver as the request may name it: hex pubkey, did:nostr, did:key. */
-export type BapApprover = { pubkey: string; didKey: string };
+/**
+ * The approver as the request may name it: hex pubkey, did:nostr, the
+ * identity did:key, or (M18) the passkey's did:key when one is enrolled.
+ */
+export type BapApprover = {
+  pubkey: string;
+  didKey: string;
+  approverDid?: string;
+};
 
 export type DraftCommitment = {
   dbap_version: "1.0";
@@ -91,7 +98,8 @@ export function isRequestAddressedTo(
   return (
     req.approverPubkey === pubkey ||
     req.request.to.includes(`did:nostr:${pubkey}`) ||
-    req.request.to.includes(me.didKey)
+    req.request.to.includes(me.didKey) ||
+    (me.approverDid !== undefined && req.request.to.includes(me.approverDid))
   );
 }
 
