@@ -3,8 +3,12 @@ use tauri::State;
 use crate::{app_state::AppState, relay::query_relay};
 
 const MAX_REPAIR_PAGE_LIMIT: u32 = 500;
-const CHANNEL_REPAIR_KINDS: [u32; 15] = [
-    5, 7, 9, 9005, 40001, 40002, 40003, 40008, 40099, 45001, 45003, 48100, 48101, 48102, 48103,
+// Keep in sync with CHANNEL_EVENT_KINDS in desktop/src/shared/constants/kinds.ts
+// (relayReconnectReplay.test.mjs pins the coupling). 4550–4572 are the BAP
+// audit-card kinds.
+const CHANNEL_REPAIR_KINDS: [u32; 28] = [
+    5, 7, 9, 4550, 4551, 4552, 4553, 4564, 4565, 4566, 4567, 4568, 4569, 4570, 4571, 4572, 9005,
+    40001, 40002, 40003, 40008, 40099, 45001, 45003, 48100, 48101, 48102, 48103,
 ];
 
 fn build_channel_reconnect_repair_filter(
