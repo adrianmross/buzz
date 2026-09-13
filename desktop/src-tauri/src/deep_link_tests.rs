@@ -1,11 +1,11 @@
 use url::Url;
 
 use super::{
-    canonical_entity_deep_link, parse_add_community_deep_link, parse_channel_deep_link,
-    parse_entity_deep_link, parse_join_deep_link, parse_message_deep_link,
-    parse_nostr_bind_deep_link, PendingCommunityDeepLink, PendingCommunityDeepLinks,
-    PendingEntityDeepLinks, PendingNavigationDeepLink, PendingNavigationDeepLinks,
-    ENTITY_LINK_TABS,
+    canonical_entity_deep_link, parse_add_community_deep_link, parse_bap_proof_deep_link,
+    parse_channel_deep_link, parse_entity_deep_link, parse_join_deep_link, parse_message_deep_link,
+    parse_nostr_bind_deep_link, PendingBapProofDeepLinks, PendingCommunityDeepLink,
+    PendingCommunityDeepLinks, PendingEntityDeepLinks, PendingNavigationDeepLink,
+    PendingNavigationDeepLinks, ENTITY_LINK_TABS, MAX_BAP_PROOF_FRAGMENT_LEN,
 };
 
 fn entity_link_golden() -> serde_json::Value {
@@ -603,4 +603,62 @@ fn parse_nostr_bind_deep_link_accepts_expired_link_for_user_facing_error() {
     let url = Url::parse("buzz://nostr-bind?challenge_id=550e8400-e29b-41d4-a716-446655440000&nonce=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi01234567&verification_code=123456&audience=buzz%3Anostr-identity&action=bind_nostr_identity&protocol=buzz-nostr-identity&version=1&origin=https%3A%2F%2Fexample.com&expires_at=2000-01-01T00%3A00%3A00Z&return=clipboard").unwrap();
     let payload = parse_nostr_bind_deep_link(&url).unwrap();
     assert_eq!(payload.expires_at, "2000-01-01T00:00:00Z");
+}
+
+#[test]
+fn parse_bap_proof_deep_link_returns_the_fragment_verbatim() {
+    let url = Url::parse("buzz://bap/proof#eyJwcm9vZiI6e319_-Ab9").unwrap();
+    assert_eq!(
+        parse_bap_proof_deep_link(&url).as_deref(),
+        Some("eyJwcm9vZiI6e319_-Ab9")
+    );
+}
+
+#[test]
+fn parse_bap_proof_deep_link_rejects_malformed_forms() {
+    let too_long = format!(
+        "buzz://bap/proof#{}",
+        "A".repeat(MAX_BAP_PROOF_FRAGMENT_LEN + 1)
+    );
+    for raw in [
+        "buzz://bap/proof",             // no payload
+        "buzz://bap/proof#",            // empty payload
+        "buzz://bap/proof?req=abc",     // query, not fragment
+        "buzz://bap/proof#abc?x=1",     // fragment with query-looking chars
+        "buzz://bap/proof#ab+c/d=",     // not base64url
+        "buzz://bap/other#abc",         // wrong path
+        "buzz://bap#abc",               // no path
+        "buzz://user:pw@bap/proof#abc", // credentials
+        "buzz://proof/bap#abc",         // swapped host/path
+        too_long.as_str(),
+    ] {
+        let url = Url::parse(raw).unwrap();
+        assert!(parse_bap_proof_deep_link(&url).is_none(), "{raw}");
+    }
+    let max = format!(
+        "buzz://bap/proof#{}",
+        "A".repeat(MAX_BAP_PROOF_FRAGMENT_LEN)
+    );
+    assert!(parse_bap_proof_deep_link(&Url::parse(&max).unwrap()).is_some());
+}
+
+#[test]
+fn pending_bap_proof_links_are_fifo_deduplicated_and_acknowledged_in_order() {
+    let queue = PendingBapProofDeepLinks::default();
+    let first = queue.enqueue("payload-1".into());
+    let again = queue.enqueue("payload-1".into());
+    assert_eq!(first, again, "the same proof opened twice queues once");
+    let second = queue.enqueue("payload-2".into());
+    assert_ne!(first.id, second.id);
+
+    assert_eq!(queue.first().unwrap().payload, "payload-1");
+    assert!(
+        !queue.acknowledge(&second.id),
+        "only the head can be acknowledged"
+    );
+    assert!(queue.acknowledge(&first.id));
+    assert_eq!(queue.first().unwrap().payload, "payload-2");
+    assert!(queue.acknowledge(&second.id));
+    assert!(queue.first().is_none());
+    assert!(!queue.acknowledge(&second.id));
 }

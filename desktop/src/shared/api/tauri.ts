@@ -586,6 +586,15 @@ export async function signRelayEvent(input: {
   return JSON.parse(eventJson) as RelayEvent;
 }
 
+/**
+ * BIP-340 Schnorr signature (hex) over a 32-byte digest (hex) with the
+ * identity key. Used for the BAP grant UCAN (`features/bap/lib/ucan.ts`) —
+ * the JWT is assembled in TS, only the digest crosses into Rust.
+ */
+export async function signDigest(digestHex: string): Promise<string> {
+  return invokeTauri<string>("sign_digest", { digestHex });
+}
+
 export async function createAuthEvent(input: {
   challenge: string;
   relayUrl: string;
