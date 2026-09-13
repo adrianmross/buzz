@@ -3,6 +3,7 @@ import { Copy, LoaderCircle, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { NativeAuthenticatorCard } from "@/features/bap/ui/NativeAuthenticatorCard";
 import { SettingsOptionGroup } from "@/features/settings/ui/SettingsOptionGroup";
 import { SettingsSectionHeader } from "@/features/settings/ui/SettingsSectionHeader";
 import { copyTextToClipboard } from "@/shared/lib/clipboard";
@@ -333,6 +334,7 @@ export function AuthoritySettingsCard({
         )}
         <MachineIdentityRow />
       </SettingsOptionGroup>
+      <NativeAuthenticatorCard currentPubkey={currentPubkey} />
       <EndpointsGroup />
       {currentPubkey ? <ManifestsGroup pubkey={currentPubkey} /> : null}
     </section>
