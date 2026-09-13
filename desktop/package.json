@@ -25,6 +25,7 @@
     "tauri:build": "node ./scripts/tauri-command.mjs build"
   },
   "dependencies": {
+    "@bap/core": "github:adrianmross/bap#path:packages/bap-core",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -90,6 +91,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@noble/curves": "^1.9.7",
     "@noble/hashes": "^2.0.1",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.3.0",

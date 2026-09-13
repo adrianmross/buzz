@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -4,7 +4,8 @@
+   "private": true,
+   "type": "module",
+   "exports": {
+-    ".": "./src/index.ts"
++    ".": "./src/index.ts",
++    "./src/*": "./src/*"
+   },
+   "dependencies": {
+     "@frosts/secp256k1-tr": "0.2.2-alpha.4",
