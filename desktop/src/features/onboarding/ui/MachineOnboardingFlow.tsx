@@ -27,6 +27,7 @@ import {
 import { IdentityKeyHelpDialog } from "./IdentityKeyHelpDialog";
 import { IdentityRecoveryPairing } from "./IdentityRecoveryPairing";
 import { LandingBees } from "./LandingBees";
+import { MachineIdentityStep } from "./MachineIdentityStep";
 import {
   NostrKeyImportForm,
   type NostrKeyImportStage,
@@ -49,6 +50,7 @@ export type MachineOnboardingPage =
   | "identity"
   | "key-import"
   | "backup"
+  | "machine"
   | "setup"
   | "config";
 
@@ -162,7 +164,7 @@ export function MachineOnboardingFlow({
       setSelectedPubkey(identity.pubkey);
       setIdentityStorage(identity.storage);
       setTransitionDirection("forward");
-      setPage("setup");
+      setPage("machine");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Failed to load identity",
@@ -207,7 +209,7 @@ export function MachineOnboardingFlow({
       setIdentityWasImported(true);
       setSelectedPubkey(identity.pubkey);
       setTransitionDirection("forward");
-      setPage("setup");
+      setPage("machine");
     },
     [continueWithIdentity, queryClient],
   );
@@ -235,7 +237,7 @@ export function MachineOnboardingFlow({
     setBackupSubview("options");
   }, [backupSession]);
 
-  const backFromSetup = React.useCallback(() => {
+  const backFromMachine = React.useCallback(() => {
     if (identityWasImported) {
       setKeyImportFormKey((current) => current + 1);
       setKeyImportStage("key-entry");
@@ -251,6 +253,11 @@ export function MachineOnboardingFlow({
     setReturningFromSecurity(false);
     setPage("backup");
   }, [backupSession, backupSubview, identityWasImported]);
+
+  const backFromSetup = React.useCallback(() => {
+    setTransitionDirection("backward");
+    setPage("machine");
+  }, []);
 
   const chromeBackAction =
     page === "key-import" &&
@@ -269,17 +276,19 @@ export function MachineOnboardingFlow({
                 setPage("identity");
               },
             }
-          : page === "setup"
-            ? { onClick: backFromSetup }
-            : page === "config"
-              ? {
-                  disabled: isDefaultConfigSaving,
-                  onClick: () => {
-                    setTransitionDirection("backward");
-                    setPage("setup");
-                  },
-                }
-              : undefined;
+          : page === "machine"
+            ? { onClick: backFromMachine }
+            : page === "setup"
+              ? { onClick: backFromSetup }
+              : page === "config"
+                ? {
+                    disabled: isDefaultConfigSaving,
+                    onClick: () => {
+                      setTransitionDirection("backward");
+                      setPage("setup");
+                    },
+                  }
+                : undefined;
 
   return (
     <div
@@ -511,7 +520,7 @@ export function MachineOnboardingFlow({
                 identityStorage={identityStorage}
                 onNext={() => {
                   setTransitionDirection("forward");
-                  setPage("setup");
+                  setPage("machine");
                 }}
                 onOpenPasswordBackup={() => {
                   resetEncryptedBackupSession(backupSession);
@@ -528,6 +537,14 @@ export function MachineOnboardingFlow({
                 returningFromSecurity={returningFromSecurity}
               />
             )
+          ) : page === "machine" ? (
+            <MachineIdentityStep
+              direction={transitionDirection}
+              onNext={() => {
+                setTransitionDirection("forward");
+                setPage("setup");
+              }}
+            />
           ) : page === "setup" ? (
             <SetupStep
               actions={{
