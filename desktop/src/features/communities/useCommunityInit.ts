@@ -15,6 +15,7 @@ import { getOverrides } from "@/shared/features";
 import { resetMediaCaches } from "@/shared/lib/mediaUrl";
 import { resetLinkPreviewMetadataCache } from "@/shared/lib/useResolvedLinkPreviews";
 import { clearSearchHitEventCache } from "@/app/navigation/searchHitEventCache";
+import { resetBapApprovalState } from "@/features/bap/lib/approveFlow";
 import { resetNavigationDeepLinkDrain } from "@/shared/deep-link";
 import {
   clearAllDrafts,
@@ -84,6 +85,7 @@ async function resetCommunityState({
   resetBackgroundMediaUploads();
   resetLinkPreviewPreparations();
   resetPersistentAgentAudienceStore();
+  resetBapApprovalState();
   // Intentionally NOT reset: the in-flight detached agent-start map
   // (`useDetachedAgentStart`). Its entries are keyed by the scope each start
   // asserts (relay URL + signer + agent pubkey), so they cannot leak into the

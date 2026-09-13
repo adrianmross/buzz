@@ -31,7 +31,9 @@ import {
 import {
   KIND_HUDDLE_STARTED,
   KIND_STREAM_MESSAGE_DIFF,
+  isBapTimelineKind,
 } from "@/shared/constants/kinds";
+import { BapCard } from "@/features/messages/ui/bap/BapCard";
 import { getConfigNudgeAuthorPubkey } from "@/features/messages/ui/configNudgeAuthPubkey";
 import { cn } from "@/shared/lib/cn";
 import { useMeasuredCssVariable } from "@/shared/layout/useMeasuredCssVariable";
@@ -415,6 +417,9 @@ export const MessageRow = React.memo(
             />
           );
         default: {
+          if (isBapTimelineKind(message.kind)) {
+            return <BapCard channelId={channelId} message={message} />;
+          }
           const waveMessage = parseWaveMessageContent(message.body);
           if (waveMessage) {
             return (
