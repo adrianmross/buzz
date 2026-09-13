@@ -21,6 +21,7 @@ import {
   CHANNEL_EVENT_KINDS,
   CHANNEL_TIMELINE_CONTENT_KINDS,
   KIND_BAP_ANNOUNCEMENT,
+  KIND_BAP_MANIFEST_CORE,
   KIND_BAP_REQUEST,
   KIND_BAP_DELEGATION,
   KIND_BAP_RESUME,
@@ -107,4 +108,11 @@ test("bapAnnouncement_isAddressable_notTimelineContent", () => {
   assert.equal(isBapTimelineKind(KIND_BAP_ANNOUNCEMENT), false);
   assert.equal(CHANNEL_TIMELINE_CONTENT_KINDS.includes(34560), false);
   assert.equal(isBapTimelineKind(undefined), false);
+});
+
+test("BAP manifest core is addressable, never a timeline card", () => {
+  assert.equal(KIND_BAP_MANIFEST_CORE, 30550);
+  assert.equal(isBapTimelineKind(KIND_BAP_MANIFEST_CORE), false);
+  assert.ok(!BAP_TIMELINE_EVENT_KINDS.includes(KIND_BAP_MANIFEST_CORE));
+  assert.ok(!CHANNEL_TIMELINE_CONTENT_KINDS.includes(KIND_BAP_MANIFEST_CORE));
 });

@@ -10,11 +10,12 @@ globalThis.window = {
   },
 };
 
+const { KIND_BAP_ANNOUNCEMENT, KIND_BAP_MANIFEST_CORE } = await import(
+  "@/shared/constants/kinds.ts"
+);
 const {
   DEFAULT_MEDIATOR_INVITATION_URL,
   DEFAULT_RELYING_PARTY_URL,
-  KIND_BAP_ANNOUNCEMENT,
-  KIND_BAP_MANIFEST_CORE,
   announcementRowsFor,
   announcementToRow,
   didNostrFromPubkey,

@@ -101,6 +101,9 @@ export const KIND_BAP_EMERGENCY_STOP = 4570;
 export const KIND_BAP_RESUME = 4571;
 export const KIND_BAP_CERTIFICATE = 4572;
 export const KIND_BAP_ANNOUNCEMENT = 34560;
+// NIP-XP v2 manifest core (manifest.ts): addressable, d-tag = resource,
+// signed by its owner_did. Read-only in the desktop (Settings → Authority).
+export const KIND_BAP_MANIFEST_CORE = 30550;
 
 // BAP kinds that render their own timeline row (all but the addressable
 // announcement). Non-conversational: they never count toward unread pills.

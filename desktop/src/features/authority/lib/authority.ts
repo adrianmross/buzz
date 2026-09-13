@@ -1,14 +1,10 @@
 import type { RelayEvent } from "@/shared/api/types";
 import { getStorageItem, setStorageItem } from "@/shared/lib/safeStorage";
 
-/**
- * BAP (Bounded Authority Protocol) kind 34560 — addressable announcement.
- * Defined locally until the shared kinds registry lands (another branch adds
- * the BAP kinds to `shared/constants/kinds.ts`; switch to that import on merge).
- */
-export const KIND_BAP_ANNOUNCEMENT = 34560;
-/** BAP kind 30550 — manifest core (NIP-XP v2), signed by its `owner_did`. */
-export const KIND_BAP_MANIFEST_CORE = 30550;
+import {
+  KIND_BAP_ANNOUNCEMENT,
+  KIND_BAP_MANIFEST_CORE,
+} from "@/shared/constants/kinds";
 
 const DID_NOSTR_PREFIX = "did:nostr:";
 const X_ONLY_HEX = /^[0-9a-f]{64}$/;

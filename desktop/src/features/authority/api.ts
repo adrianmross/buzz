@@ -4,8 +4,8 @@ import type { RelayEvent } from "@/shared/api/types";
 import {
   KIND_BAP_ANNOUNCEMENT,
   KIND_BAP_MANIFEST_CORE,
-  relyingPartyInfoUrl,
-} from "./lib/authority";
+} from "@/shared/constants/kinds";
+import { relyingPartyInfoUrl } from "./lib/authority";
 
 const MANIFEST_KINDS = [KIND_BAP_MANIFEST_CORE, KIND_BAP_ANNOUNCEMENT];
 

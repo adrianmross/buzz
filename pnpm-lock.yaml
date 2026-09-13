@@ -9,7 +9,6 @@ overrides:
   linkify-it: ^5.0.2
 
 patchedDependencies:
-  '@bap/core': bfb041dcd9a293e6b1f8877823135657430d0f408b4cfa68e3c46fdcd1f5ea1f
   isomorphic-git: e9b414a60d4cf1d8aa18f7a779483984e821989967c235662566e94ef0238d3f
   virtua@0.49.3: 30a7a92b94800ec37be8d36546ea98c04a05dcd0637f9fac27a06f016ba2eff4
 
@@ -68,8 +67,8 @@ importers:
   desktop:
     dependencies:
       '@bap/core':
-        specifier: github:adrianmross/bap#path:packages/bap-core
-        version: git+https://git@github.com:adrianmross/bap.git#7a654a5c18ee39ad468c0a6dde531d9ab548c14e&path:packages/bap-core(patch_hash=bfb041dcd9a293e6b1f8877823135657430d0f408b4cfa68e3c46fdcd1f5ea1f)
+        specifier: github:adrianmross/bap#d027f5123714ac7c7f6a6cc8f50d490331de8a5f&path:packages/bap-core
+        version: git+https://git@github.com:adrianmross/bap.git#d027f5123714ac7c7f6a6cc8f50d490331de8a5f&path:packages/bap-core
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -528,8 +527,8 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@bap/core@git+https://git@github.com:adrianmross/bap.git#7a654a5c18ee39ad468c0a6dde531d9ab548c14e&path:packages/bap-core':
-    resolution: {commit: 7a654a5c18ee39ad468c0a6dde531d9ab548c14e, path: packages/bap-core, repo: git@github.com:adrianmross/bap.git, type: git}
+  '@bap/core@git+https://git@github.com:adrianmross/bap.git#d027f5123714ac7c7f6a6cc8f50d490331de8a5f&path:packages/bap-core':
+    resolution: {commit: d027f5123714ac7c7f6a6cc8f50d490331de8a5f, path: packages/bap-core, repo: git@github.com:adrianmross/bap.git, type: git}
     version: 0.0.1
 
   '@biomejs/biome@2.4.16':
@@ -3956,7 +3955,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@bap/core@git+https://git@github.com:adrianmross/bap.git#7a654a5c18ee39ad468c0a6dde531d9ab548c14e&path:packages/bap-core(patch_hash=bfb041dcd9a293e6b1f8877823135657430d0f408b4cfa68e3c46fdcd1f5ea1f)':
+  '@bap/core@git+https://git@github.com:adrianmross/bap.git#d027f5123714ac7c7f6a6cc8f50d490331de8a5f&path:packages/bap-core':
     dependencies:
       '@frosts/secp256k1-tr': 0.2.2-alpha.4
       '@noble/ciphers': 1.3.0
