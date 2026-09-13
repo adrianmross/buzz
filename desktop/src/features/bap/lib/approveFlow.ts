@@ -16,27 +16,44 @@ import {
   isRequestAddressedTo,
   isRequestExpired,
 } from "@/features/bap/lib/bapApproval";
+import {
+  loadNativeEnrollment,
+  nativeAuthenticatorReady,
+  runNativeCeremony,
+} from "@/features/bap/lib/nativeAuthenticator";
 import { assembleUcan } from "@/features/bap/lib/ucan";
+import { readAuthoritySettings } from "@/features/authority/lib/authority";
 import { relayClient } from "@/shared/api/relayClient";
 import { signDigest, signRelayEvent } from "@/shared/api/tauri";
 import type { RelayEvent } from "@/shared/api/types";
 import { KIND_BAP_DELEGATION } from "@/shared/constants/kinds";
 
 /**
- * The approve flow, split by the browser round trip:
+ * The approve flow. With a Touch ID enrolment on this Mac the whole ceremony
+ * runs in-app; otherwise it is split by the browser round trip:
  *
- *   startBapApproval   draft commitment → hosted RP wallet page (system browser)
- *   (page)             /challenge → passkey assertion → /verify → buzz://bap/proof#…
+ *   startBapApproval   draft commitment →
+ *     native           /challenge → Secure Enclave assertion (Touch ID) → /verify
+ *                      → completeBapApproval, no browser
+ *     browser          hosted RP wallet page (system browser) →
+ *     (page)           /challenge → passkey assertion → /verify → buzz://bap/proof#…
  *   completeBapApproval proof → grantWithinCommitment → UCAN (Rust-signed digest)
  *                      → kind 4551 into the request's channel
  *
  * Same algorithm as `approveRequest()` in the bap repo's wallet CLI.
  */
 
-/** Hosted relying party; `VITE_BAP_RP_URL` points a dev build at the dev RP. */
-export const BAP_RP_URL: string =
-  (import.meta.env?.VITE_BAP_RP_URL as string | undefined) ??
-  "https://approve.red-wiz.stream";
+/** Relying party: `VITE_BAP_RP_URL` for dev builds, else the Authority setting. */
+export function bapRpUrl(): string {
+  return (
+    (import.meta.env?.VITE_BAP_RP_URL as string | undefined) ??
+    readAuthoritySettings().relyingPartyUrl
+  );
+}
+
+export type BapApprovalStart =
+  | { mode: "native" }
+  | { mode: "browser"; url: string };
 
 type PendingApproval = {
   eventId: string;
@@ -60,12 +77,16 @@ export function approverFor(pubkey: string) {
   return { pubkey: normalized, didKey: didKeyFromNostrPubkey(normalized) };
 }
 
-/** Build the draft commitment and open the wallet page. Returns the URL opened. */
+/**
+ * Build the draft commitment, then either finish natively (Touch ID) or open
+ * the wallet page. A native ceremony that fails (cancelled Touch ID, RP
+ * refusal) throws rather than silently falling back to the browser.
+ */
 export async function startBapApproval(
   req: BapRequest,
   myPubkey: string,
   now = Math.floor(Date.now() / 1000),
-): Promise<string> {
+): Promise<BapApprovalStart> {
   const me = approverFor(myPubkey);
   if (!isRequestAddressedTo(req, me)) {
     throw new Error("This request is addressed to a different approver.");
@@ -89,9 +110,16 @@ export async function startBapApproval(
     chainRoot: req.request.chainRoot,
     audiencePubkey,
   });
-  const url = buildRpApproveUrl(BAP_RP_URL, draft);
+  const rp = bapRpUrl();
+  const enrollment = loadNativeEnrollment(me.didKey);
+  if (enrollment && (await nativeAuthenticatorReady(enrollment))) {
+    const payload = await runNativeCeremony(rp, draft, enrollment);
+    await completeBapApproval(payload);
+    return { mode: "native" };
+  }
+  const url = buildRpApproveUrl(rp, draft);
   await openUrl(url);
-  return url;
+  return { mode: "browser", url };
 }
 
 /** Finish an approval from the verified proof: sign the grant, publish 4551. */

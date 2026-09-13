@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -95,6 +96,7 @@ function ApproveAction({
 }) {
   const identity = useIdentityQuery().data;
   const pending = useBapPendingRequests(identity?.pubkey);
+  const queryClient = useQueryClient();
   const [busy, setBusy] = React.useState(false);
   const isPending = pending.some((req) => req.eventId === message.id);
   if (!isPending || !identity) return null;
@@ -112,13 +114,18 @@ function ApproveAction({
     if (!req) return;
     setBusy(true);
     try {
-      await startBapApproval(
+      const started = await startBapApproval(
         { ...req, channelId: req.channelId ?? channelId },
         identity.pubkey,
       );
-      toast.info(
-        "Approve with your passkey in the browser; the grant is published here when it returns.",
-      );
+      if (started.mode === "native") {
+        toast.success("Approval granted and published.");
+        void queryClient.invalidateQueries({ queryKey: ["home-feed"] });
+      } else {
+        toast.info(
+          "Approve with your passkey in the browser; the grant is published here when it returns.",
+        );
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
