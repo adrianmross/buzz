@@ -1,0 +1,19 @@
+{
+  "assert_challenge": "dbap:v1:Y1lC50it4SgC-rU8U5nql4LAITXm_uudQO8sAvKMiQE",
+  "assertion": {
+    "authenticator_data": "F7HDMOtkPNnTqksZabE20rLGkko9KIovexBfDNcdOs4FAAAAAA",
+    "client_data_json": "eyJjaGFsbGVuZ2UiOiJaR0poY0RwMk1UcFpNV3hETlRCcGREUlRaME10Y2xVNFZUVnVjV3cwVEVGSlZGaHRYM1YxWkZGUE9ITkJka3ROYVZGRiIsImNyb3NzT3JpZ2luIjpmYWxzZSwib3JpZ2luIjoiaHR0cHM6Ly9hcHByb3ZlLmxvY2FsaG9zdCIsInR5cGUiOiJ3ZWJhdXRobi5nZXQifQ",
+    "credential_id": "mc53GUdWLj5YDOoqACqZJQfZtsLJrMM-DvAK35CRfLY",
+    "signature": "MEUCIQDqor_pO-jFtOvsPwJM2zzfHrMOMPv2OqGHo0nmtp5OHQIgDqOc_xrpUP2PLJBvlj25kj6CLqKFxwbe2BsmUjN4KWE"
+  },
+  "commitment_jcs": "{\"audience_did\":\"did:key:zQ3shS9i8ufXsDMmNUWAzJDryVeJeQjh2cQNVA6Sc3r9W8wnv\",\"command\":\"/git/merge\",\"dbap_version\":\"1.0\",\"expires\":1900,\"grant_type\":\"ucan-delegation\",\"issuer_did\":\"did:key:zQ3shSjz9ynfhPyXRUxz6uQDZHUzwPK5V3UTc5gvJc4xZ2cE5\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"not_before\":1000,\"policy\":[[\"==\",\".action_digest\",\"sha256:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef\"]],\"request_ref\":\"req-1\",\"resource\":\"nostr:git/naddr1/refs/heads/main\"}",
+  "enroll_challenge": "dbap:enroll:Zm9vYmFyYmF6cXV4MTIzNA",
+  "origin": "https://approve.localhost",
+  "registration": {
+    "attestation_object": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikF7HDMOtkPNnTqksZabE20rLGkko9KIovexBfDNcdOs5FAAAAAAAAAAAAAAAAAAAAAAAAAAAAIJnOdxlHVi4-WAzqKgAqmSUH2bbCyazDPg7wCt-QkXy2pQECAyYgASFYIF_7Eob_9HxgtWIDNVoiqyP9qv_cU_6VFVZmnS3CCDqTIlggKRpcE6m0gP2xbX7renj66qdt2h8AVCZ8TMgKH4Rwn2o",
+    "client_data_json": "eyJjaGFsbGVuZ2UiOiJaR0poY0RwbGJuSnZiR3c2V20wNWRsbHRSbmxaYlVZMlkxaFdORTFVU1hwT1FRIiwiY3Jvc3NPcmlnaW4iOmZhbHNlLCJvcmlnaW4iOiJodHRwczovL2FwcHJvdmUubG9jYWxob3N0IiwidHlwZSI6IndlYmF1dGhuLmNyZWF0ZSJ9",
+    "cose_key": "pQECAyYgASFYIF_7Eob_9HxgtWIDNVoiqyP9qv_cU_6VFVZmnS3CCDqTIlggKRpcE6m0gP2xbX7renj66qdt2h8AVCZ8TMgKH4Rwn2o",
+    "credential_id": "mc53GUdWLj5YDOoqACqZJQfZtsLJrMM-DvAK35CRfLY"
+  },
+  "rp_id": "approve.localhost"
+}

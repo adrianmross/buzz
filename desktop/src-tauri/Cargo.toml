@@ -61,6 +61,9 @@ security-framework = { version = "3.7.0", features = ["OSX_10_15"] }
 window-vibrancy = "0.6"
 user-idle = { version = "0.6", default-features = false }
 plist = "1"
+objc2-local-authentication = { version = "0.3", default-features = false, features = ["LAContext", "LAError", "LAPublicDefines"] }
+core-foundation = "0.10"
+security-framework-sys = { version = "2.17", features = ["OSX_10_15"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Registry", "Win32_System_Threading", "Win32_Foundation"] }
@@ -157,3 +160,4 @@ tokio = { version = "1", features = ["test-util"] }
 # The relay's media validation, so desktop-produced snapshots and voice notes
 # can prove their full client-sanitize → relay-accept contract end to end.
 buzz_media_pkg = { package = "buzz-media", path = "../../crates/buzz-media" }
+aws-lc-rs = { version = "1", default-features = false, features = ["aws-lc-sys"] }
