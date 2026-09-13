@@ -557,6 +557,8 @@ pub fn run() {
             transfer_builderlab_community,
             title_bar_double_click,
             get_identity,
+            bap_machine_identity_get,
+            bap_machine_identity_create,
             get_nsec,
             generate_backup_passphrase,
             create_ncryptsec_backup,

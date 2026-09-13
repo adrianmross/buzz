@@ -9,6 +9,7 @@ import {
   Download,
   FlaskConical,
   Keyboard,
+  KeyRound,
   LayoutTemplate,
   MessagesSquare,
   MonitorCog,
@@ -69,6 +70,7 @@ import { MobilePairingCard } from "./MobilePairingCard";
 import { ModerationQueueCard } from "./ModerationQueueCard";
 import { NotificationSettingsCard } from "./NotificationSettingsCard";
 import { AgentsSettingsPanel } from "./AgentsSettingsPanel";
+import { AuthoritySettingsCard } from "@/features/authority/ui/AuthoritySettingsCard";
 import { HostedCommunitiesSettingsCard } from "./HostedCommunitiesSettingsCard";
 import {
   SettingsOptionGroup,
@@ -87,6 +89,7 @@ export type SettingsSection =
   | "voice"
   | "experimental"
   | "agents"
+  | "authority"
   | "channel-templates"
   | "compute"
   | "appearance"
@@ -107,6 +110,7 @@ const SETTINGS_SECTION_VALUES: readonly SettingsSection[] = [
   "voice",
   "experimental",
   "agents",
+  "authority",
   "channel-templates",
   "compute",
   "appearance",
@@ -181,6 +185,11 @@ export const settingsSections: SettingsSectionDescriptor[] = [
     label: "Agents",
     icon: Bot,
     featureGate: "managed-agents",
+  },
+  {
+    value: "authority",
+    label: "Authority",
+    icon: KeyRound,
   },
   {
     value: "channel-templates",
@@ -834,6 +843,8 @@ export function renderSettingsSection(
       return <ExperimentalFeaturesCard />;
     case "agents":
       return <AgentsSettingsPanel />;
+    case "authority":
+      return <AuthoritySettingsCard currentPubkey={props.currentPubkey} />;
     case "channel-templates":
       return <ChannelTemplatesSettingsCard />;
     case "compute":

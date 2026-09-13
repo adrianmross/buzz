@@ -15124,6 +15124,11 @@ export function maybeInstallE2eTauriMocks() {
         }
         return null;
       }
+      case "bap_machine_identity_get":
+        return null;
+      case "bap_machine_identity_create":
+        // Distinct from the human mock identity: the machine key is its own pair.
+        return "b".repeat(64);
       default:
         throw new Error(`Unsupported mocked Tauri command: ${command}`);
     }
