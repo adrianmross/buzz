@@ -5818,7 +5818,8 @@ async function handleGetChannelReconnectRepair(
   config: E2eConfig | undefined,
 ): Promise<RelayEvent[]> {
   const kinds = new Set([
-    5, 7, 9, 9005, 40001, 40002, 40003, 40008, 40099, 45001, 45003, 48100,
+    5, 7, 9, 4550, 4551, 4552, 4553, 4564, 4565, 4566, 4567, 4568, 4569, 4570,
+    4571, 4572, 9005, 40001, 40002, 40003, 40008, 40099, 45001, 45003, 48100,
     48101, 48102, 48103,
   ]);
   const filter: Record<string, unknown> = {
@@ -13446,6 +13447,10 @@ export function maybeInstallE2eTauriMocks() {
         mockPendingNavigationDeepLinks.shift();
         return true;
       }
+      case "take_pending_bap_proof_deep_link":
+        return null;
+      case "acknowledge_pending_bap_proof_deep_link":
+        return false;
       case "take_pending_entity_deep_link":
         return mockPendingEntityDeepLinks[0] ?? null;
       case "acknowledge_pending_entity_deep_link": {

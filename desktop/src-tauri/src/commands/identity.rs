@@ -162,6 +162,55 @@ pub async fn sign_event(
     .map_err(|e| format!("spawn_blocking failed: {e}"))?
 }
 
+/// BIP-340 Schnorr signature (hex) over a 32-byte digest (hex) with the
+/// identity key. The BAP grant UCAN is assembled in the frontend
+/// (`features/bap/lib/ucan.ts`); only its signing-input digest crosses here,
+/// so the secret never leaves Rust.
+pub(crate) fn sign_digest_with(keys: &Keys, digest_hex: &str) -> Result<String, String> {
+    let bytes =
+        hex::decode(digest_hex.trim()).map_err(|error| format!("invalid digest hex: {error}"))?;
+    let digest: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| "digest must be exactly 32 bytes".to_string())?;
+    let message = nostr::secp256k1::Message::from_digest(digest);
+    Ok(keys.sign_schnorr(&message).to_string())
+}
+
+#[tauri::command]
+pub fn sign_digest(digest_hex: String, state: State<'_, AppState>) -> Result<String, String> {
+    let keys = state.signing_keys()?;
+    sign_digest_with(&keys, &digest_hex)
+}
+
+#[cfg(test)]
+mod sign_digest_tests {
+    use super::sign_digest_with;
+    use nostr::secp256k1::{schnorr::Signature, Message, SECP256K1};
+    use nostr::Keys;
+    use std::str::FromStr;
+
+    #[test]
+    fn signs_a_32_byte_digest_verifiable_by_the_identity_pubkey() {
+        let keys = Keys::generate();
+        let digest = "ab".repeat(32);
+        let sig_hex = sign_digest_with(&keys, &digest).unwrap();
+        assert_eq!(sig_hex.len(), 128);
+        let sig = Signature::from_str(&sig_hex).unwrap();
+        let msg = Message::from_digest([0xab; 32]);
+        SECP256K1
+            .verify_schnorr(&sig, &msg, &keys.public_key().xonly().unwrap())
+            .expect("signature verifies");
+    }
+
+    #[test]
+    fn rejects_non_hex_and_wrong_length_digests() {
+        let keys = Keys::generate();
+        assert!(sign_digest_with(&keys, "zz").is_err());
+        assert!(sign_digest_with(&keys, &"ab".repeat(31)).is_err());
+        assert!(sign_digest_with(&keys, &"ab".repeat(33)).is_err());
+    }
+}
+
 #[tauri::command]
 pub async fn decrypt_observer_event(
     event_json: String,

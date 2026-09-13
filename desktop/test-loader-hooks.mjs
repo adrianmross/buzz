@@ -180,7 +180,13 @@ export async function load(url, context, nextLoad) {
     };
   }
 
-  if (url.endsWith(".tsx")) {
+  // `@bap/core` ships TypeScript source (its package entry is `src/index.ts`).
+  // Node refuses to strip types under node_modules, so transpile it here the
+  // same way .tsx sources are; every other .ts file still goes through node's
+  // own type stripping.
+  const isBapSource =
+    url.endsWith(".ts") && url.includes("/node_modules/@bap/");
+  if (url.endsWith(".tsx") || isBapSource) {
     const source = fs.readFileSync(fileURLToPath(url), "utf8");
     const transpiled = ts.transpileModule(source, {
       compilerOptions: {

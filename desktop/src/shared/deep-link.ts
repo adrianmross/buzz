@@ -73,6 +73,16 @@ type PendingEntityDeepLink = {
   href: string;
 };
 
+/**
+ * Queued `buzz://bap/proof#<payload>` link from the hosted BAP wallet page:
+ * `payload` is the raw fragment (base64url JSON), parsed by
+ * `features/bap/lib/bapApproval.ts`.
+ */
+type PendingBapProofDeepLink = {
+  id: string;
+  payload: string;
+};
+
 function acceptPendingCommunityDeepLink(
   pending: PendingCommunityDeepLink,
   deps: DeepLinkDeps,
@@ -335,4 +345,52 @@ export function listenForNostrBindDeepLinks(
   return listen<NostrBindDeepLinkPayload>("deep-link-nostr-bind", (event) => {
     onOpen(event.payload);
   });
+}
+
+/**
+ * Register a listener for `deep-link-bap-proof` events — the wallet page's
+ * return trip after a passkey ceremony. Same take/acknowledge queue contract
+ * as entity links: the consumer accepts an item before it is acknowledged.
+ */
+export function listenForBapProofDeepLinks(
+  onProof: (payload: string) => boolean | Promise<boolean>,
+): Promise<UnlistenFn> {
+  let drainRunning = false;
+  let drainRequested = false;
+  const drain = () => {
+    drainRequested = true;
+    if (drainRunning) return;
+    drainRunning = true;
+    void (async () => {
+      try {
+        while (drainRequested) {
+          drainRequested = false;
+          while (true) {
+            const pending = await invoke<PendingBapProofDeepLink | null>(
+              "take_pending_bap_proof_deep_link",
+            );
+            if (!pending) break;
+            if (!(await onProof(pending.payload))) return;
+            const acknowledged = await invoke<boolean>(
+              "acknowledge_pending_bap_proof_deep_link",
+              { id: pending.id },
+            );
+            if (!acknowledged) break;
+          }
+        }
+      } catch (error: unknown) {
+        console.warn("Failed to drain pending BAP proof deep links", error);
+      } finally {
+        drainRunning = false;
+        if (drainRequested) drain();
+      }
+    })();
+  };
+
+  return listen<PendingBapProofDeepLink>("deep-link-bap-proof", drain).then(
+    (unlisten) => {
+      drain();
+      return unlisten;
+    },
+  );
 }

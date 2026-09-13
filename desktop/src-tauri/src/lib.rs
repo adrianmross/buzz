@@ -59,11 +59,12 @@ use builderlab::*;
 pub use commands::print_agent_access_owner_only_probe_if_requested;
 use commands::*;
 use deep_link::{
-    acknowledge_pending_community_deep_link, acknowledge_pending_entity_deep_link,
-    acknowledge_pending_navigation_deep_link, clear_pending_navigation_deep_links,
-    handle_deep_link_url, take_pending_community_deep_link, take_pending_entity_deep_link,
-    take_pending_navigation_deep_link, PendingCommunityDeepLinks, PendingEntityDeepLinks,
-    PendingNavigationDeepLinks,
+    acknowledge_pending_bap_proof_deep_link, acknowledge_pending_community_deep_link,
+    acknowledge_pending_entity_deep_link, acknowledge_pending_navigation_deep_link,
+    clear_pending_navigation_deep_links, handle_deep_link_url, take_pending_bap_proof_deep_link,
+    take_pending_community_deep_link, take_pending_entity_deep_link,
+    take_pending_navigation_deep_link, PendingBapProofDeepLinks, PendingCommunityDeepLinks,
+    PendingEntityDeepLinks, PendingNavigationDeepLinks,
 };
 use huddle::{
     add_agent_to_huddle,
@@ -226,6 +227,7 @@ pub fn run() {
         .manage(PendingCommunityDeepLinks::default())
         .manage(PendingNavigationDeepLinks::default())
         .manage(PendingEntityDeepLinks::default())
+        .manage(PendingBapProofDeepLinks::default())
         .manage(BuilderlabSession::default())
         .manage(BuilderlabLogin::default())
         .manage(commands::pairing::PairingHandle::new())
@@ -536,6 +538,9 @@ pub fn run() {
             acknowledge_pending_navigation_deep_link,
             clear_pending_navigation_deep_links,
             take_pending_entity_deep_link,
+            take_pending_bap_proof_deep_link,
+            acknowledge_pending_bap_proof_deep_link,
+            sign_digest,
             acknowledge_pending_entity_deep_link,
             start_builderlab_login,
             cancel_builderlab_login,

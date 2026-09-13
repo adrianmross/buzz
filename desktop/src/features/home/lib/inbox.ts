@@ -163,6 +163,7 @@ function feedHeadline(item: FeedItem, groupItems: readonly FeedItem[] = []) {
     case 45003:
       return "Forum reply";
     case 46010:
+    case 4550:
       return "Approval requested";
     default:
       if (item.category === "mention") {

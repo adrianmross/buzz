@@ -200,6 +200,98 @@ pub(crate) fn acknowledge_pending_entity_deep_link(
     pending.acknowledge(&id)
 }
 
+/// Queued `buzz://bap/proof#<payload>` link: the hosted BAP wallet page's
+/// return trip after a passkey ceremony. `payload` is the raw fragment
+/// (base64url JSON `{proof, verify}`), parsed by the frontend.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PendingBapProofDeepLink {
+    id: String,
+    payload: String,
+}
+
+#[derive(Default)]
+pub(crate) struct PendingBapProofDeepLinks(Mutex<VecDeque<PendingBapProofDeepLink>>);
+
+impl PendingBapProofDeepLinks {
+    fn lock(&self) -> std::sync::MutexGuard<'_, VecDeque<PendingBapProofDeepLink>> {
+        self.0.lock().unwrap_or_else(|poisoned| {
+            eprintln!("buzz-desktop: recovering poisoned pending BAP proof deep-link queue");
+            poisoned.into_inner()
+        })
+    }
+
+    fn enqueue(&self, payload: String) -> PendingBapProofDeepLink {
+        let mut queue = self.lock();
+        if let Some(existing) = queue.iter().find(|item| item.payload == payload) {
+            return existing.clone();
+        }
+        let pending = PendingBapProofDeepLink {
+            id: uuid::Uuid::new_v4().to_string(),
+            payload,
+        };
+        queue.push_back(pending.clone());
+        pending
+    }
+
+    fn first(&self) -> Option<PendingBapProofDeepLink> {
+        self.lock().front().cloned()
+    }
+
+    fn acknowledge(&self, id: &str) -> bool {
+        let mut queue = self.lock();
+        if queue.front().is_some_and(|item| item.id == id) {
+            queue.pop_front();
+            true
+        } else {
+            false
+        }
+    }
+}
+
+#[tauri::command]
+pub(crate) fn take_pending_bap_proof_deep_link(
+    pending: State<'_, PendingBapProofDeepLinks>,
+) -> Option<PendingBapProofDeepLink> {
+    pending.first()
+}
+
+#[tauri::command]
+pub(crate) fn acknowledge_pending_bap_proof_deep_link(
+    id: String,
+    pending: State<'_, PendingBapProofDeepLinks>,
+) -> bool {
+    pending.acknowledge(&id)
+}
+
+/// Upper bound on a proof fragment: a DBAP 1.0 proof is < 4 KiB and the
+/// `{proof, verify}` envelope adds little; 16 KiB leaves room without letting a
+/// hostile link queue arbitrary bytes.
+const MAX_BAP_PROOF_FRAGMENT_LEN: usize = 16 * 1024;
+
+/// `buzz://bap/proof#<base64url>` — the payload rides in the fragment so it
+/// never reaches a log line or a query parser. Returns the raw fragment.
+fn parse_bap_proof_deep_link(url: &Url) -> Option<String> {
+    if url.host_str() != Some("bap")
+        || url.path() != "/proof"
+        || url.query().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return None;
+    }
+    let fragment = url.fragment()?;
+    if fragment.is_empty()
+        || fragment.len() > MAX_BAP_PROOF_FRAGMENT_LEN
+        || !fragment
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+    {
+        return None;
+    }
+    Some(fragment.to_owned())
+}
+
 fn queue_community_deep_link(
     app: &tauri::AppHandle,
     kind: &str,
@@ -603,6 +695,7 @@ fn parse_nostr_bind_deep_link(url: &Url) -> Result<NostrBindDeepLinkPayload, Str
 /// Currently supports:
 /// - `buzz://connect?relay=<ws(s)://...>` — emits `deep-link-connect` to the frontend
 /// - `buzz://repo|project|pr|issue?…` — emits `deep-link-entity` to the frontend
+/// - `buzz://bap/proof#<payload>` — emits `deep-link-bap-proof` to the frontend
 pub(crate) fn handle_deep_link_url(app: &tauri::AppHandle, url_str: &str) {
     let url = match Url::parse(url_str) {
         Ok(u) => u,
@@ -702,6 +795,18 @@ pub(crate) fn handle_deep_link_url(app: &tauri::AppHandle, url_str: &str) {
             activate_main_window(app);
             let pending = queue_entity_deep_link(app, href);
             let _ = app.emit("deep-link-entity", pending);
+        }
+        Some("bap") => {
+            // `buzz://bap/proof#<payload>` — the wallet page hands back a
+            // verified DeviceBoundApprovalProof; the frontend signs and
+            // publishes the grant.
+            let Some(payload) = parse_bap_proof_deep_link(&url) else {
+                eprintln!("buzz-desktop: malformed bap deep link (expected /proof#<base64url>)");
+                return;
+            };
+            activate_main_window(app);
+            let pending = app.state::<PendingBapProofDeepLinks>().enqueue(payload);
+            let _ = app.emit("deep-link-bap-proof", pending);
         }
         Some("nostr-bind") => match parse_nostr_bind_deep_link(&url) {
             Ok(payload) => {

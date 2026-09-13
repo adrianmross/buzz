@@ -82,6 +82,51 @@ export const KIND_GIT_STATUS_DRAFT = 1633;
 // NIP-DV: relay-signed per-viewer DM visibility snapshot (d=viewer pubkey,
 // h-tags = currently-hidden DM channel ids).
 export const KIND_DM_VISIBILITY = 30622;
+// BAP (NIP-XD agent authorization) kinds. Mirror of packages/bap-core in the
+// bap repo (events.ts, replica.ts, beacon.ts, estop.ts, pap.ts, rcm.ts,
+// certificate.ts); byte bounds live there. 34560 is addressable (d-tag keyed)
+// and never channel content; every other kind may be posted into a channel
+// with an `h` tag and renders as an audit card.
+export const KIND_BAP_REQUEST = 4550;
+export const KIND_BAP_DELEGATION = 4551;
+export const KIND_BAP_INVOCATION = 4552;
+export const KIND_BAP_REVOCATION = 4553;
+export const KIND_BAP_CHECKPOINT = 4564;
+export const KIND_BAP_BEACON = 4565;
+export const KIND_BAP_CLAIM_RECEIPT = 4566;
+export const KIND_BAP_ATTESTATION = 4567;
+export const KIND_BAP_RECEIPT = 4568;
+export const KIND_BAP_EPOCH_ROLLUP = 4569;
+export const KIND_BAP_EMERGENCY_STOP = 4570;
+export const KIND_BAP_RESUME = 4571;
+export const KIND_BAP_CERTIFICATE = 4572;
+export const KIND_BAP_ANNOUNCEMENT = 34560;
+
+// BAP kinds that render their own timeline row (all but the addressable
+// announcement). Non-conversational: they never count toward unread pills.
+export const BAP_TIMELINE_EVENT_KINDS = [
+  KIND_BAP_REQUEST,
+  KIND_BAP_DELEGATION,
+  KIND_BAP_INVOCATION,
+  KIND_BAP_REVOCATION,
+  KIND_BAP_CHECKPOINT,
+  KIND_BAP_BEACON,
+  KIND_BAP_CLAIM_RECEIPT,
+  KIND_BAP_ATTESTATION,
+  KIND_BAP_RECEIPT,
+  KIND_BAP_EPOCH_ROLLUP,
+  KIND_BAP_EMERGENCY_STOP,
+  KIND_BAP_RESUME,
+  KIND_BAP_CERTIFICATE,
+] as const;
+
+const BAP_TIMELINE_KIND_SET: ReadonlySet<number> = new Set(
+  BAP_TIMELINE_EVENT_KINDS,
+);
+
+export function isBapTimelineKind(kind: number | undefined): boolean {
+  return kind !== undefined && BAP_TIMELINE_KIND_SET.has(kind);
+}
 
 // Human-visible "new content" message kinds. Used as the unread trigger set
 // (sidebar badges, catch-up queries) and as the Home-feed mention query.
@@ -111,6 +156,7 @@ export const CHANNEL_EVENT_KINDS = [
   KIND_HUDDLE_PARTICIPANT_JOINED, // 48101 — huddle lifecycle overlay
   KIND_HUDDLE_PARTICIPANT_LEFT, // 48102 — huddle lifecycle overlay
   KIND_HUDDLE_ENDED, // 48103 — huddle lifecycle overlay
+  ...BAP_TIMELINE_EVENT_KINDS, // 4550–4572 — BAP audit cards
 ] as const;
 
 // Auxiliary (non-row) timeline kinds: events that overlay onto or hide an
@@ -147,6 +193,7 @@ export const CHANNEL_TIMELINE_CONTENT_KINDS = [
   KIND_JOB_CANCEL, // 43005
   KIND_JOB_ERROR, // 43006
   KIND_HUDDLE_STARTED, // 48100 — huddle session card
+  ...BAP_TIMELINE_EVENT_KINDS, // 4550–4572 — BAP audit cards (own row)
 ] as const;
 
 // Timeline kinds that are NOT conversational: relay-signed system rows
@@ -166,6 +213,7 @@ const NON_CONVERSATIONAL_UNREAD_KINDS: ReadonlySet<number> = new Set([
   KIND_HUDDLE_PARTICIPANT_JOINED, // 48101
   KIND_HUDDLE_PARTICIPANT_LEFT, // 48102
   KIND_HUDDLE_ENDED, // 48103
+  ...BAP_TIMELINE_EVENT_KINDS, // 4550–4572 — BAP audit cards
 ]);
 
 // Whether a timeline message kind should count toward unread tallies. An
