@@ -242,7 +242,7 @@ function ManifestsGroup({ pubkey }: { pubkey: string }) {
 
   return (
     <SettingsOptionGroup
-      description="Kind 34560 announcements on this community's relay where you are the owner or a listed approver. Shown as tagged (d, resource, revision, owner); untagged shapes fall back to the d tag and a content summary."
+      description="Kind 30550 manifest cores and kind 34560 replica announcements on this community's relay where you are the owner or a listed approver. Untagged announcement shapes fall back to the d tag and a content summary."
       headerAction={
         <Button
           aria-label="Refresh manifests"
@@ -280,6 +280,9 @@ function ManifestsGroup({ pubkey }: { pubkey: string }) {
             <li className={ROW_CLASS} key={row.id}>
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="font-medium">{row.resource}</span>
+                <span className="rounded-full bg-muted px-2 text-xs text-muted-foreground">
+                  {row.kindLabel}
+                </span>
                 {row.revision !== null ? (
                   <span className="text-muted-foreground">
                     rev {row.revision}

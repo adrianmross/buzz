@@ -14,6 +14,7 @@ const {
   DEFAULT_MEDIATOR_INVITATION_URL,
   DEFAULT_RELYING_PARTY_URL,
   KIND_BAP_ANNOUNCEMENT,
+  KIND_BAP_MANIFEST_CORE,
   announcementRowsFor,
   announcementToRow,
   didNostrFromPubkey,
@@ -119,6 +120,45 @@ test("announcementToRow reads d/resource/revision/owner and falls back to the si
   assert.equal(bare.ownerDid, "did:key:zQ3sh");
 
   assert.equal(announcementToRow(event({})).ownerDid, `did:nostr:${OTHER}`);
+  assert.equal(announcementToRow(event({})).kindLabel, "replica announcement");
+});
+
+test("announcementToRow reads a 30550 manifest core from its content and tags", () => {
+  // Shape from bap-vectors manifests.json / parseCoreEvent: d = resource,
+  // revision tag, JCS content carrying owner_did + resource.
+  const row = announcementToRow(
+    event({
+      kind: KIND_BAP_MANIFEST_CORE,
+      tags: [
+        ["d", "nostr:git/bap"],
+        ["revision", "7"],
+        ["mod", "estop", "e0d3", "30551:f1a9:estop-prod"],
+        ["profiles", "aep-elision/1.0"],
+      ],
+      content: JSON.stringify({
+        commands: {},
+        owner_did: "did:key:zQ3shdg8nhyhD7WgKpQd82tCtAjUvfSgyHYzT2gUG4FajUmoh",
+        resource: "nostr:git/bap",
+        xp_version: "2.0",
+      }),
+    }),
+  );
+  assert.equal(row.kindLabel, "manifest");
+  assert.equal(row.resource, "nostr:git/bap");
+  assert.equal(row.d, "nostr:git/bap");
+  assert.equal(row.revision, 7);
+  assert.equal(
+    row.ownerDid,
+    "did:key:zQ3shdg8nhyhD7WgKpQd82tCtAjUvfSgyHYzT2gUG4FajUmoh",
+  );
+  assert.equal(row.contentSummary, "");
+
+  // Non-JSON content: falls back to the d tag and the signer.
+  const broken = announcementToRow(
+    event({ kind: KIND_BAP_MANIFEST_CORE, tags: [["d", "x"]], content: "{" }),
+  );
+  assert.equal(broken.resource, "x");
+  assert.equal(broken.ownerDid, `did:nostr:${OTHER}`);
 });
 
 test("announcementRowsFor keeps only announcements naming me, deduped, newest first", () => {
@@ -133,12 +173,19 @@ test("announcementRowsFor keeps only announcements naming me, deduped, newest fi
         created_at: 2,
       }),
       event({ id: "stranger", tags: [["p", OTHER]], created_at: 9 }),
-      event({ id: "wrong-kind", pubkey: ME, kind: 30550, created_at: 9 }),
+      event({
+        id: "my-core",
+        pubkey: ME,
+        kind: KIND_BAP_MANIFEST_CORE,
+        created_at: 4,
+      }),
+      event({ id: "other-core", kind: KIND_BAP_MANIFEST_CORE, created_at: 9 }),
+      event({ id: "wrong-kind", pubkey: ME, kind: 30551, created_at: 9 }),
     ],
     ME,
   );
   assert.deepEqual(
     rows.map((row) => row.id),
-    ["approver", "owner-did", "mine"],
+    ["my-core", "approver", "owner-did", "mine"],
   );
 });

@@ -7,6 +7,8 @@ import { getStorageItem, setStorageItem } from "@/shared/lib/safeStorage";
  * the BAP kinds to `shared/constants/kinds.ts`; switch to that import on merge).
  */
 export const KIND_BAP_ANNOUNCEMENT = 34560;
+/** BAP kind 30550 — manifest core (NIP-XP v2), signed by its `owner_did`. */
+export const KIND_BAP_MANIFEST_CORE = 30550;
 
 const DID_NOSTR_PREFIX = "did:nostr:";
 const X_ONLY_HEX = /^[0-9a-f]{64}$/;
@@ -62,19 +64,22 @@ export function relyingPartyInfoUrl(relyingPartyUrl: string): string {
   return `${relyingPartyUrl.trim().replace(/\/+$/, "")}/rp`;
 }
 
-/** Row model for one kind-34560 announcement. */
+export type AnnouncementRowKind = "manifest" | "replica announcement";
+
+/** Row model for one kind-30550 manifest core or kind-34560 announcement. */
 export type AnnouncementRow = {
   id: string;
+  kindLabel: AnnouncementRowKind;
   /** `d` tag (the announcement's addressable name). */
   d: string;
-  /** `resource` tag when present, else the `d` tag. */
+  /** Manifest: content `resource`; announcement: `resource` tag; else `d`. */
   resource: string;
   /** `revision` tag; null when the announcement carries none. */
   revision: number | null;
-  /** `owner`/`agent` tag as a DID, else the signer as did:nostr. */
+  /** Manifest: content `owner_did`; announcement: `owner`/`agent` tag; else the signer as did:nostr. */
   ownerDid: string;
   updatedAt: number;
-  /** First 120 chars of the content, for shapes this panel does not model. */
+  /** Announcements only: first 120 chars of the content for unmodelled shapes. */
   contentSummary: string;
 };
 
@@ -82,28 +87,52 @@ function firstTag(event: RelayEvent, name: string): string | undefined {
   return event.tags.find((tag) => tag[0] === name)?.[1];
 }
 
+function manifestCoreFields(content: string): {
+  owner_did?: string;
+  resource?: string;
+} {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (parsed && typeof parsed === "object") {
+      const { owner_did, resource } = parsed as Record<string, unknown>;
+      return {
+        owner_did: typeof owner_did === "string" ? owner_did : undefined,
+        resource: typeof resource === "string" ? resource : undefined,
+      };
+    }
+  } catch {
+    // Not JCS/JSON — fall back to tags below.
+  }
+  return {};
+}
+
 export function announcementToRow(event: RelayEvent): AnnouncementRow {
   const d = firstTag(event, "d") ?? "";
   const revisionRaw = firstTag(event, "revision");
   const revision = revisionRaw === undefined ? Number.NaN : Number(revisionRaw);
+  const isManifest = event.kind === KIND_BAP_MANIFEST_CORE;
+  const core = isManifest ? manifestCoreFields(event.content) : {};
   return {
     id: event.id,
+    kindLabel: isManifest ? "manifest" : "replica announcement",
     d,
-    resource: firstTag(event, "resource") ?? d,
+    resource: core.resource ?? firstTag(event, "resource") ?? d,
     revision: Number.isInteger(revision) && revision >= 0 ? revision : null,
     ownerDid:
+      core.owner_did ??
       firstTag(event, "owner") ??
       firstTag(event, "agent") ??
       didNostrFromPubkey(event.pubkey) ??
       event.pubkey,
     updatedAt: event.created_at,
-    contentSummary: event.content.slice(0, 120),
+    contentSummary: isManifest ? "" : event.content.slice(0, 120),
   };
 }
 
 /**
- * Dedupe by id, keep only announcements naming `pubkey`/`did` as signer,
- * `owner`, `agent`, or a `p` approver, newest first.
+ * Dedupe by id, keep only manifest cores and announcements naming
+ * `pubkey`/`did` as signer (a core is always signed by its owner), `owner`,
+ * `agent`, or a `p` approver, newest first.
  */
 export function announcementRowsFor(
   events: readonly RelayEvent[],
@@ -113,7 +142,12 @@ export function announcementRowsFor(
   const seen = new Set<string>();
   const rows: AnnouncementRow[] = [];
   for (const event of events) {
-    if (event.kind !== KIND_BAP_ANNOUNCEMENT || seen.has(event.id)) continue;
+    if (
+      (event.kind !== KIND_BAP_ANNOUNCEMENT &&
+        event.kind !== KIND_BAP_MANIFEST_CORE) ||
+      seen.has(event.id)
+    )
+      continue;
     const named =
       event.pubkey === pubkeyHex ||
       event.tags.some(

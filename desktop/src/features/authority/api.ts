@@ -1,7 +1,13 @@
 import { relayClient } from "@/shared/api/relayClient";
 import { invokeTauri } from "@/shared/api/tauri";
 import type { RelayEvent } from "@/shared/api/types";
-import { KIND_BAP_ANNOUNCEMENT, relyingPartyInfoUrl } from "./lib/authority";
+import {
+  KIND_BAP_ANNOUNCEMENT,
+  KIND_BAP_MANIFEST_CORE,
+  relyingPartyInfoUrl,
+} from "./lib/authority";
+
+const MANIFEST_KINDS = [KIND_BAP_MANIFEST_CORE, KIND_BAP_ANNOUNCEMENT];
 
 /** Pubkey hex of this machine's BAP identity, or null before creation. */
 export function getMachineIdentity(): Promise<string | null> {
@@ -34,19 +40,20 @@ export async function fetchRelyingPartyInfo(
 }
 
 /**
- * Kind-34560 announcements signed by `me` or listing `me` as a `p` approver.
+ * Kind-30550 manifest cores and kind-34560 announcements signed by `me` or
+ * listing `me` as a `p` approver.
  * Owner/agent DID tags are not relay-indexed, so `announcementRowsFor` does
  * the final DID match client-side.
  */
 export async function fetchAnnouncementsFor(me: string): Promise<RelayEvent[]> {
   const [signed, approver] = await Promise.all([
     relayClient.fetchEvents({
-      kinds: [KIND_BAP_ANNOUNCEMENT],
+      kinds: MANIFEST_KINDS,
       authors: [me],
       limit: 200,
     }),
     relayClient.fetchEvents({
-      kinds: [KIND_BAP_ANNOUNCEMENT],
+      kinds: MANIFEST_KINDS,
       "#p": [me],
       limit: 200,
     }),
