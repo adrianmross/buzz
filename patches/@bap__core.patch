@@ -1,0 +1,12 @@
+diff --git a/src/dbap.ts b/src/dbap.ts
+--- a/src/dbap.ts
++++ b/src/dbap.ts
+@@ -2,7 +2,7 @@ import { didKeyFromP256 } from './did.ts';
+ import { p256 } from '@noble/curves/p256';
+ import { sha256 } from '@noble/hashes/sha256';
+ import { bytesToHex, hexToBytes, concatBytes, randomBytes } from '@noble/hashes/utils';
+-import { base64urlnopad, base58 } from '@scure/base';
++import { base64urlnopad } from '@scure/base';
+ import { jcs, utf8 } from './jcs.ts';
+ import { normalizePolicy, policyRefines, type PolicyAtom } from './policy.ts';
+ import { cmdCovers, resCovers } from './residual.ts';

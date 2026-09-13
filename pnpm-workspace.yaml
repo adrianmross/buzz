@@ -19,5 +19,6 @@ overrides:
   # markdown-it resolves linkify-it >=5.0.2 on its own.
   linkify-it: "^5.0.2"
 patchedDependencies:
+  '@bap/core': patches/@bap__core.patch
   isomorphic-git: patches/isomorphic-git.patch
   virtua@0.49.3: patches/virtua@0.49.3.patch

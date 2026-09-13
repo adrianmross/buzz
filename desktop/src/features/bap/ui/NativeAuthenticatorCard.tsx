@@ -2,31 +2,40 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { approverFor, bapRpUrl } from "@/features/bap/lib/approveFlow";
+import { didKeyFromNostrPubkey } from "@bap/core/src/did.ts";
+
+import { bapRpUrl } from "@/features/bap/lib/approveFlow";
 import {
   clearNativeEnrollment,
   enrollNativeAuthenticator,
+  enrollmentSigns,
   loadNativeEnrollment,
   type NativeEnrollment,
   tauriNativeIo,
 } from "@/features/bap/lib/nativeAuthenticator";
+import { DidRow } from "@/features/authority/ui/DidRow";
 import { SettingsOptionGroup } from "@/features/settings/ui/SettingsOptionGroup";
 import { Button } from "@/shared/ui/button";
 
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+export const LEGACY_ENROLLMENT_HINT =
+  "This enrolment predates passkey signing: grants are still signed by your identity key. Re-enrol so the passkey itself is the approver.";
+
 /**
- * "Touch ID approvals": enrol this Mac's Secure Enclave credential with the
- * relying party so approvals run in-app instead of in the browser.
- * Mounted by the Authority settings card under the DID rows.
+ * "Touch ID approvals": enrol this Mac's Secure Enclave credential and
+ * signing key with the relying party so approvals run in-app, signed by the
+ * passkey (M18). Mounted by the Authority settings card under the DID rows.
  */
 export function NativeAuthenticatorCard({
   currentPubkey,
 }: {
   currentPubkey?: string;
 }) {
-  const issuerDid = currentPubkey ? approverFor(currentPubkey).didKey : null;
+  const ownerDid = currentPubkey
+    ? didKeyFromNostrPubkey(currentPubkey.toLowerCase())
+    : null;
   const queryClient = useQueryClient();
   const status = useQuery({
     queryKey: ["bap-native-authenticator"],
@@ -34,17 +43,17 @@ export function NativeAuthenticatorCard({
     staleTime: 30_000,
   });
   const [enrollment, setEnrollment] = React.useState<NativeEnrollment | null>(
-    () => (issuerDid ? loadNativeEnrollment(issuerDid) : null),
+    () => (ownerDid ? loadNativeEnrollment(ownerDid) : null),
   );
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const enrol = async () => {
-    if (!issuerDid) return;
+    if (!ownerDid) return;
     setBusy(true);
     setError(null);
     try {
-      setEnrollment(await enrollNativeAuthenticator(bapRpUrl(), issuerDid));
+      setEnrollment(await enrollNativeAuthenticator(bapRpUrl(), ownerDid));
       toast.success("Touch ID enrolled for BAP approvals on this Mac.");
       void queryClient.invalidateQueries({
         queryKey: ["bap-native-authenticator"],
@@ -62,10 +71,12 @@ export function NativeAuthenticatorCard({
   };
 
   const s = status.data;
+  const signs = enrollment !== null && enrollmentSigns(enrollment);
   const keyMatches =
     enrollment !== null &&
     s?.enrolled === true &&
-    s.credential_id === enrollment.credential_id;
+    s.credential_id === enrollment.credential_id &&
+    (!signs || s.sign_key === enrollment.sign_key);
   const summary = status.isPending
     ? "Checking Touch ID…"
     : !s?.available
@@ -73,12 +84,12 @@ export function NativeAuthenticatorCard({
       : keyMatches
         ? "Enrolled. Approvals run in-app with Touch ID; the browser is only used as a fallback."
         : enrollment
-          ? "This Mac's credential no longer matches the saved enrolment. Enrol again."
+          ? "This Mac's keys no longer match the saved enrolment. Enrol again."
           : "Not enrolled. Approvals open the passkey page in your browser.";
 
   return (
     <SettingsOptionGroup
-      description="A P-256 key in this Mac's Secure Enclave, unlocked by Touch ID or your login password, acts as the DBAP authenticator."
+      description="Two P-256 keys in this Mac's Secure Enclave, unlocked by Touch ID or your login password: one asserts the approval ceremony, the other signs the grant and is the approver DID."
       title="Touch ID approvals"
     >
       <div className="flex flex-col gap-2 px-4 py-3 text-sm">
@@ -93,6 +104,14 @@ export function NativeAuthenticatorCard({
             credential {enrollment.credential_id}
           </code>
         ) : null}
+        {enrollment && !signs ? (
+          <p
+            className="text-muted-foreground"
+            data-testid="bap-native-authenticator-legacy"
+          >
+            {LEGACY_ENROLLMENT_HINT}
+          </p>
+        ) : null}
         {error ? (
           <p
             className="text-destructive"
@@ -104,7 +123,7 @@ export function NativeAuthenticatorCard({
         <div className="flex flex-wrap gap-2">
           <Button
             data-testid="bap-native-authenticator-enrol"
-            disabled={busy || !issuerDid || !s?.available}
+            disabled={busy || !ownerDid || !s?.available}
             onClick={() => void enrol()}
             size="sm"
             type="button"
@@ -112,7 +131,7 @@ export function NativeAuthenticatorCard({
           >
             {busy
               ? "Enrolling…"
-              : keyMatches
+              : keyMatches && signs
                 ? "Re-enrol Touch ID"
                 : "Enrol Touch ID on this Mac"}
           </Button>
@@ -130,6 +149,14 @@ export function NativeAuthenticatorCard({
           ) : null}
         </div>
       </div>
+      {signs ? (
+        <DidRow
+          did={enrollment.issuer_did}
+          hint="Grants you approve here are issued by this DID. A resource's manifest must list it as an approver — not your identity DID — for the passkey to be trusted."
+          label="Approver DID (passkey)"
+          testId="bap-approver-did"
+        />
+      ) : null}
     </SettingsOptionGroup>
   );
 }

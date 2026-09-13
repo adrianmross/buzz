@@ -120,6 +120,11 @@ function ApproveAction({
       );
       if (started.mode === "native") {
         toast.success("Approval granted and published.");
+        if (started.legacyEnrollment) {
+          toast.info(
+            "Signed with your identity key. Re-enrol Touch ID in Settings › Authority so the passkey signs grants.",
+          );
+        }
         void queryClient.invalidateQueries({ queryKey: ["home-feed"] });
       } else {
         toast.info(

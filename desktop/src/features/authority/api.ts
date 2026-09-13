@@ -23,7 +23,9 @@ export type RelyingPartyInfo = {
   rp_id: string;
   origin: string;
   dbap?: unknown;
+  /** The one binding older RPs advertise; `enrollments` lists every one verified (M18). */
   enrollment?: unknown;
+  enrollments?: unknown;
 };
 
 /** `GET <rp>/rp` — throws with the HTTP status or network error message. */

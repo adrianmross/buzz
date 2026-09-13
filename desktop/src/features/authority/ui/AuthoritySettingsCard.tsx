@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Copy, LoaderCircle, RefreshCw } from "lucide-react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
 import { NativeAuthenticatorCard } from "@/features/bap/ui/NativeAuthenticatorCard";
 import { SettingsOptionGroup } from "@/features/settings/ui/SettingsOptionGroup";
 import { SettingsSectionHeader } from "@/features/settings/ui/SettingsSectionHeader";
-import { copyTextToClipboard } from "@/shared/lib/clipboard";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
@@ -23,43 +22,10 @@ import {
   readAuthoritySettings,
   writeAuthoritySettings,
 } from "../lib/authority";
-
-const ROW_CLASS = "flex flex-col gap-2 px-4 py-3 text-sm";
-const DID_CLASS =
-  "min-w-0 flex-1 select-text break-all font-mono text-xs text-muted-foreground";
+import { DID_CLASS, DidRow, ROW_CLASS } from "./DidRow";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function DidRow({
-  did,
-  label,
-  testId,
-}: {
-  did: string;
-  label: string;
-  testId: string;
-}) {
-  return (
-    <div className={ROW_CLASS}>
-      <span className="font-medium">{label}</span>
-      <div className="flex items-center gap-2">
-        <code className={DID_CLASS} data-testid={testId}>
-          {did}
-        </code>
-        <Button
-          aria-label={`Copy ${label}`}
-          onClick={() => copyTextToClipboard(did, `${label} copied`)}
-          size="icon-xs"
-          type="button"
-          variant="ghost"
-        >
-          <Copy aria-hidden="true" />
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 function MachineIdentityRow() {
@@ -198,9 +164,9 @@ function EndpointsGroup() {
             data-testid="authority-rp-result"
           >
             rp_id: <code className="font-mono text-xs">{rpInfo.rp_id}</code>
-            {" · "}enrollment:{" "}
+            {" · "}enrollments:{" "}
             <code className="font-mono text-xs">
-              {JSON.stringify(rpInfo.enrollment ?? null)}
+              {JSON.stringify(rpInfo.enrollments ?? rpInfo.enrollment ?? null)}
             </code>
           </p>
         ) : null}
