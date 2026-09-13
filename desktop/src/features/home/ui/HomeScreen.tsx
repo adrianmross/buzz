@@ -3,6 +3,10 @@ import * as React from "react";
 import { useAppShell } from "@/app/AppShellContext";
 import { markHiddenDmFeedItems } from "@/features/channels/dmResurface";
 import { useHiddenDmIds } from "@/features/channels/useHiddenDmIds";
+import {
+  bapPendingFeedItems,
+  useBapPendingRequests,
+} from "@/features/bap/hooks";
 import { useHomeFeedQuery } from "@/features/home/hooks";
 import { HomeView } from "@/features/home/ui/HomeView";
 import type { HomeFeedResponse } from "@/shared/api/types";
@@ -29,16 +33,24 @@ export function HomeScreen({
   const homeFeedQuery = useHomeFeedQuery();
   const { threadActivityFeedItems } = useAppShell();
   const hiddenDmIds = useHiddenDmIds(currentPubkey);
+  const bapPending = useBapPendingRequests(currentPubkey);
 
   const augmentedFeed = React.useMemo((): HomeFeedResponse | undefined => {
     if (!homeFeedQuery.data) return undefined;
+    const bapItems = bapPendingFeedItems(bapPending);
     const withThreadActivity =
-      threadActivityFeedItems.length === 0
+      threadActivityFeedItems.length === 0 && bapItems.length === 0
         ? homeFeedQuery.data
         : {
             ...homeFeedQuery.data,
             feed: {
               ...homeFeedQuery.data.feed,
+              // BAP requests addressed to me come from the relay directly
+              // (kind 4550 by `#p`), not from the server-side home feed.
+              needsAction: [
+                ...homeFeedQuery.data.feed.needsAction,
+                ...bapItems,
+              ],
               activity: [
                 ...homeFeedQuery.data.feed.activity,
                 ...threadActivityFeedItems,
@@ -46,7 +58,7 @@ export function HomeScreen({
             },
           };
     return markHiddenDmFeedItems(withThreadActivity, hiddenDmIds);
-  }, [hiddenDmIds, homeFeedQuery.data, threadActivityFeedItems]);
+  }, [bapPending, hiddenDmIds, homeFeedQuery.data, threadActivityFeedItems]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

@@ -5,11 +5,18 @@ import { remindersQueryKey } from "@/features/reminders/hooks";
 import { relayClient } from "@/shared/api/relayClient";
 import {
   KIND_APPROVAL_REQUEST,
+  KIND_BAP_REQUEST,
   KIND_EVENT_REMINDER,
   KIND_REMINDER,
 } from "@/shared/constants/kinds";
 
-const HOME_FEED_ACTION_KINDS = [KIND_APPROVAL_REQUEST, KIND_REMINDER] as const;
+// 4550 (BAP approval request) refreshes the home feed too: the BAP pending
+// query lives under the same `home-feed` key prefix.
+const HOME_FEED_ACTION_KINDS = [
+  KIND_APPROVAL_REQUEST,
+  KIND_BAP_REQUEST,
+  KIND_REMINDER,
+] as const;
 const LIVE_HOME_FEED_RETRY_BASE_MS = 1_000;
 const LIVE_HOME_FEED_RETRY_MAX_MS = 30_000;
 

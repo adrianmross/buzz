@@ -7,6 +7,7 @@ import {
 import type { FeedItem } from "@/shared/api/types";
 import {
   KIND_APPROVAL_REQUEST,
+  KIND_BAP_REQUEST,
   KIND_FORUM_COMMENT,
   KIND_FORUM_POST,
   KIND_JOB_ACCEPTED,
@@ -79,6 +80,7 @@ function feedHeadline(item: FeedItem) {
     case KIND_FORUM_COMMENT:
       return "Forum reply";
     case KIND_APPROVAL_REQUEST:
+    case KIND_BAP_REQUEST:
       return "Approval requested";
     default:
       if (item.category === "mention") {
