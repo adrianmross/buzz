@@ -544,6 +544,7 @@ pub fn run() {
             dbap_authenticator_status,
             dbap_authenticator_enroll,
             dbap_authenticator_assert,
+            dbap_authenticator_sign_digest,
             dbap_rp_post,
             acknowledge_pending_entity_deep_link,
             start_builderlab_login,
